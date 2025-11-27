@@ -13,8 +13,8 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 
 DATA_FILE = "data.json"
 
-ADMIN_USER = "admin"
-ADMIN_PASS = "12345"
+ADMIN_USER = "husarph1"
+ADMIN_PASS = "SpaceGh0st"
 
 # --------------------------------------------------
 # UTILIDADES
