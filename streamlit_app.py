@@ -13,8 +13,8 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 
 DATA_FILE = "data.json"
 
-ADMIN_USER = "husarph1"
-ADMIN_PASS = "SpaceGh0st"
+ADMIN_USER = "admin"
+ADMIN_PASS = "12345"
 
 # --------------------------------------------------
 # UTILIDADES
@@ -43,7 +43,6 @@ def delete_entry(filename):
     data = [d for d in data if d["filename"] != filename]
     save_data(data)
 
-    # borrar archivo
     try:
         os.remove(UPLOAD_DIR / filename)
     except:
@@ -70,7 +69,7 @@ if image_file and st.button("📤 Publicar"):
     add_entry(image_file.name, user if user else "Anónimo", comment)
 
     st.success("📸 Imagen publicada con éxito")
-    st.experimental_rerun()
+    st.rerun()     # ← FUNCIONAL EN STREAMLIT CLOUD
 
 # --------------------------------------------------
 # GALERÍA
@@ -119,4 +118,4 @@ else:
         if st.button(f"🗑 Borrar {entry['filename']}"):
             delete_entry(entry["filename"])
             st.warning("Imagen eliminada.")
-            st.experimental_rerun()
+            st.rerun()   # ← TAMBIÉN ACTUALIZADO
