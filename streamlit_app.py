@@ -1,121 +1,125 @@
 import streamlit as st
-import json
 import os
-from pathlib import Path
+import json
+from PIL import Image
 
-# --------------------------------------------------
-# CONFIG
-# --------------------------------------------------
-st.set_page_config(page_title="Galería Pública", layout="wide")
-
-UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
-
+# -----------------------------
+# CONFIGURACIÓN
+# -----------------------------
+UPLOAD_FOLDER = "uploads"
 DATA_FILE = "data.json"
 
-ADMIN_USER = "admin"
-ADMIN_PASS = "12345"
+ADMIN_USER = "husarph1"
+ADMIN_PASS = "SpaceGh0st"
 
-# --------------------------------------------------
-# UTILIDADES
-# --------------------------------------------------
+# -----------------------------
+# CREAR CARPETAS Y ARCHIVOS
+# -----------------------------
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+if not os.path.exists(DATA_FILE):
+    with open(DATA_FILE, "w") as f:
+        json.dump([], f)
+
+# -----------------------------
+# GUARDAR COMENTARIOS
+# -----------------------------
 def load_data():
-    if not os.path.exists(DATA_FILE):
-        return []
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
+    with open(DATA_FILE, "r") as f:
         return json.load(f)
 
 def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
 
-def add_entry(filename, user, comment):
+# -----------------------------
+# PÁGINA PRINCIPAL
+# -----------------------------
+def main_page():
+    st.title("📸 Galería Comunitaria")
+    st.write("Sube una foto y deja un comentario.")
+
+    uploaded = st.file_uploader("Sube una imagen", type=["jpg", "jpeg", "png"])
+    comment = st.text_input("Comentario")
+    
+    if st.button("Publicar"):
+        if uploaded:
+            img_path = os.path.join(UPLOAD_FOLDER, uploaded.name)
+            with open(img_path, "wb") as f:
+                f.write(uploaded.getbuffer())
+
+            data = load_data()
+            data.append({"image": img_path, "comment": comment})
+            save_data(data)
+
+            st.success("Publicado correctamente!")
+        else:
+            st.error("Sube una imagen primero.")
+
+    st.write("---")
+    st.subheader("🖼️ Galería")
+
     data = load_data()
-    data.append({
-        "filename": filename,
-        "user": user,
-        "comment": comment
-    })
-    save_data(data)
+    cols = st.columns(3)
 
-def delete_entry(filename):
-    data = load_data()
-    data = [d for d in data if d["filename"] != filename]
-    save_data(data)
+    for i, item in enumerate(data):
+        with cols[i % 3]:
+            st.image(item["image"], use_column_width=True)
+            st.caption(item["comment"])
 
-    try:
-        os.remove(UPLOAD_DIR / filename)
-    except:
-        pass
+    st.write("---")
+    if st.button("Entrar como administrador"):
+        st.session_state["admin_mode"] = True
 
-# --------------------------------------------------
-# INTERFAZ
-# --------------------------------------------------
-st.title("📸 Galería Pública sin Base de Datos")
+# -----------------------------
+# ADMIN PAGE
+# -----------------------------
+def admin_page():
+    st.title("🔐 Administrador")
 
-st.write("Sube una imagen con un comentario para que aparezca en el tablero.")
-
-# --------------------------------------------------
-# SUBIR
-# --------------------------------------------------
-user = st.text_input("Tu nombre (opcional):", "")
-comment = st.text_area("Comentario:")
-image_file = st.file_uploader("Subir imagen", type=["jpg", "jpeg", "png"])
-
-if image_file and st.button("📤 Publicar"):
-    filepath = UPLOAD_DIR / image_file.name
-    filepath.write_bytes(image_file.getvalue())
-
-    add_entry(image_file.name, user if user else "Anónimo", comment)
-
-    st.success("📸 Imagen publicada con éxito")
-    st.rerun()     # ← FUNCIONAL EN STREAMLIT CLOUD
-
-# --------------------------------------------------
-# GALERÍA
-# --------------------------------------------------
-st.write("---")
-st.header("🖼️ Galería")
-
-entries = load_data()
-
-cols = st.columns(4)
-
-for idx, entry in enumerate(reversed(entries)):
-    col = cols[idx % 4]
-    with col:
-        st.image(f"uploads/{entry['filename']}", use_column_width=True)
-        st.caption(f"**{entry['user']}**: {entry['comment']}")
-
-# --------------------------------------------------
-# ADMIN
-# --------------------------------------------------
-st.write("---")
-st.subheader("🔐 Administrador")
-
-if "admin" not in st.session_state:
-    st.session_state["admin"] = False
-
-if not st.session_state["admin"]:
-    a_user = st.text_input("Usuario:")
-    a_pass = st.text_input("Contraseña:", type="password")
+    user = st.text_input("Usuario")
+    password = st.text_input("Contraseña", type="password")
 
     if st.button("Entrar"):
-        if a_user == ADMIN_USER and a_pass == ADMIN_PASS:
-            st.session_state["admin"] = True
-            st.success("Acceso concedido ✔")
+        if user == ADMIN_USER and password == ADMIN_PASS:
+            st.session_state["auth"] = True
         else:
-            st.error("Credenciales incorrectas.")
+            st.error("Usuario o contraseña incorrectos")
+
+    if st.session_state.get("auth"):
+        st.success("Sesión iniciada")
+        st.subheader("Borrar imágenes o comentarios")
+
+        data = load_data()
+
+        for i, item in enumerate(data):
+            st.image(item["image"], width=200)
+            st.write(f"Comentario: {item['comment']}")
+
+            if st.button(f"Borrar {i}"):
+                try:
+                    os.remove(item["image"])
+                except:
+                    pass
+
+                data.pop(i)
+                save_data(data)
+                st.warning("Eliminado.")
+                st.experimental_rerun()
+
+        if st.button("Salir del modo admin"):
+            st.session_state["admin_mode"] = False
+            st.session_state["auth"] = False
+            st.experimental_rerun()
+
+
+# -----------------------------
+# ROUTER
+# -----------------------------
+if "admin_mode" not in st.session_state:
+    st.session_state["admin_mode"] = False
+
+if not st.session_state["admin_mode"]:
+    main_page()
 else:
-    st.success("Bienvenido administrador ✔")
-
-    st.write("Puedes borrar imágenes inapropiadas:")
-
-    for entry in entries:
-        st.image(f"uploads/{entry['filename']}", width=150)
-        st.write(f"{entry['user']}: {entry['comment']}")
-
-        if st.button(f"🗑 Borrar {entry['filename']}"):
-            delete_entry(entry["filename"])
-            st.warning("Imagen eliminada.")
-            st.rerun()   # ← TAMBIÉN ACTUALIZADO
+    admin_page()
